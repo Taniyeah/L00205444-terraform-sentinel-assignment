@@ -1,0 +1,1 @@
+# L00205444-terraform-sentinel-assignment
