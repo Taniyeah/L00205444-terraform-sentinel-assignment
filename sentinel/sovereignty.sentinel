@@ -1,0 +1,22 @@
+// sovereignty.sentinel
+// Digital sovereignty: only approved AWS regions may be used.
+// Structure follows the HashiCorp Sentinel "write a policy" tutorial.
+
+import "tfplan/v2" as tfplan
+
+// Approved regions (design decision, see README):
+//   eu-west-1    Ireland (primary)
+//   eu-central-1 Frankfurt, Germany (EU resilience / backup region)
+// Not approved: eu-west-2 (London, UK) and eu-central-2 (Zurich, Switzerland),
+// even though their names start with "eu-".
+// Can be overridden through sentinel.hcl params.
+param allowed_regions default ["eu-west-1", "eu-central-1"]
+
+// The region value used in the plan must be on the approved list.
+region_allowed = rule {
+	tfplan.variables.region.value in allowed_regions
+}
+
+main = rule {
+	region_allowed
+}

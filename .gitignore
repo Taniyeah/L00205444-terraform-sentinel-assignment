@@ -1,0 +1,15 @@
+# Terraform local files (keep .terraform.lock.hcl, it is required)
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.auto.tfvars
+terraform.tfvars
+
+# Credentials and secrets
+*.pem
+*.key
+.env
+
+# macOS
+.DS_Store
