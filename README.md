@@ -11,10 +11,11 @@ Terraform makes a plan. Sentinel checks the plan and passes or fails it. In HCP 
 - `tests/`: mock data per policy
 - `documentation/`: evidence 
 
-| Policy | File | What it checks | Enforcement | Status |
-|---|---|---|---|---|
-| Sovereignty (approved regions) | `sentinel/sovereignty.sentinel` | The `region` variable in the plan is `eu-west-1` or `eu-central-1` | hard-mandatory (blocks the run) 
-| Instance type | `sentinel/instance_type.sentinel` | Instance type is t2.micro, t2.small or t2.medium, and a `Name` tag exists | advisory (warns only) 
+| Policy | File | What it checks | Enforcement |
+|---|---|---|---|
+| Sovereignty (approved regions) | `sentinel/sovereignty.sentinel` | The `region` variable in the plan is `eu-west-1` or `eu-central-1` | hard-mandatory (blocks the run) |
+| Instance type | `sentinel/instance_type.sentinel` | Instance type is t2.micro, t2.small or t2.medium, and a `Name` tag exists | advisory |
+| Allowed providers (supply chain) | `sentinel/allowed_providers.sentinel` (needs `sentinel/common-functions/tfconfig-functions.sentinel`) | Every provider in the configuration is `aws` | advisory |
 
 
 Run the tests from `sentinel/` with `sentinel test -verbose`. Evidence is in `documentation/evidence/`.
@@ -48,16 +49,43 @@ that idea.
 - The policy is HashiCorp's `restrict-aws-instances-type-and-tag` example
   (MPL-2.0), copied with a credit header.
 
+  **Allowed providers policy (supply chain)**
+
+HashiCorp's `allowed-providers` policy, with the allowed list reduced to
+`["aws"]` because my code only uses AWS. It checks the configuration, not
+the plan.
+
+- **CLI:** pass and fail both work. The pass mock is from an HCP run.
+  The fail mock is HashiCorp's own, with `google`, `random` and others.
+- **HCP Free:** the policy errors with
+  `Import "tfconfig-functions" is not available`. It needs a helper file,
+  and the HCP form takes only one file. Evidence:
+  `documentation/evidence/hcp-allowed-providers-error.png`.
+- **Limit:** it checks the provider name (`aws`), not the full address
+  (`hashicorp/aws`). I did not test what happens with another publisher's
+  provider of the same name.
+- **Warning:** Sentinel shows a deprecation warning for the `module` block.
+  HashiCorp's own tests use it too.
+
 
 ## Decision justification
 
 - **Policy as code works for sovereignty:** the region rule is written once, checked on every plan and kept in Git. It blocked a US region before anything was built. It enforces my region list, not sovereignty itself.
-- **Region limits:** a region shows where data sits, not who runs the platform. My policy also reads the `region` variable, so a region hard-coded in AWS would be missed.
-- **Supply chain:** The provider runs with my AWS credentials, so a changed provider could bypass every policy. The pinned version and lock file make Terraform install the same provider each run. Sentinel cannot see inside a provider, and I did not write a policy for provider source yet
-- **Sentinel limits:** Sentinel only checks the plan that Terraform produces. It has no way of seeing what happens in AWS outside Terraform.
+- **Region limits:** a region shows where data sits, not who runs the platform. My policy also reads the `region` variable, so a region hard-coded in provider block would be missed.
+- **Supply chain:** the provider runs with my AWS credentials, so a changed provider could bypass every policy. The pinned version and lock file make Terraform install the same provider each run. When I changed the version in HCP, the old lock file stopped the run (`documentation/evidence/hcp-lockfile-mismatch.png`). The `allowed_providers` policy rejects any provider except `aws`, but it only worked on the CLI, not in HCP Free. Sentinel cannot see inside a provider.
+- **Sentinel limits:** Sentinel only checks the plan that Terraform produces. It has no way of seeing what happens in AWS outside Terraform. Advisory failures do not block a run.
 - **Maintenance:** regions and policies in HCP can drift from GitHub. On the Free plan HCP can’t read GitHub by itself, so it doesn’t update automatically.
 
 ## AI use declaration
+
+**My work:**
+- Worked through HashiCorp's beginner Terraform tutorial (the HashiCups coffee example) and set up the HCP Terraform Free account and organization
+- Built and ran everything myself: every command, and every step in HCP Terraform, AWS and GitHub
+- Chose the policies, the regions and the enforcement levels, and decided what to leave out
+- Took and checked all the evidence, found and fixed the problems that came up (paths, expired credentials, the lock file mismatch, the fork configuration)
+- Wrote the README in my own words and managed the Git branches, pull requests and merges
+
+**AI assistance:** Claude (Anthropic), Claude Sonnet 5.5 (`claude-sonnet-5-5`) for feedback on design choices and README. Additionally, Claude helped me to understand the assigment step by step 
 
 ## Credits and sources
 
@@ -70,12 +98,5 @@ that idea.
   `learn-sentinel-write-policy` (MPL-2.0, Copyright (c) 2021 HashiCorp,
   Inc.), copied unmodified apart from a credit header. Licence copy:
   `sentinel/LICENSE-HashiCorp-learn-sentinel-write-policy`.
-- `sentinel/sovereignty.sentinel` and the test cases are my own work.
+- `sentinel/sovereignty.sentinel` and the test cases are my own work with AI assisted feedback
 
-**Sources**
-- Dáil Éireann, Question 74, 13 May 2026: definition of digital
-  sovereignty and the Digital Security & Resilience priority. (add link)
-- Declaration for European Digital Sovereignty, signed by Ireland on
-  18 November 2025 in Berlin. (add link)
-- HashiCorp Sentinel and HCP Terraform documentation. (add links to the
-  pages you actually used)
