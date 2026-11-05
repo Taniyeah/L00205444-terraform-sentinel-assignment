@@ -1,0 +1,10 @@
+{
+	"records": [
+		{
+			"key": "tfconfig-functions",
+			"source": "./common-functions/tfconfig-functions.sentinel",
+			"sourceSum": "",
+			"dest": "/Users/taniya/Documents/L00205444-Sentinal Assignment/sentinel/common-functions/tfconfig-functions.sentinel"
+		}
+	]
+}
