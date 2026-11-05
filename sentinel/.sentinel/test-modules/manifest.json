@@ -1,0 +1,16 @@
+{
+	"records": [
+		{
+			"key": "test/allowed_providers/fail/tfconfig-functions",
+			"source": "../../common-functions/tfconfig-functions.sentinel",
+			"sourceSum": "",
+			"dest": "/Users/taniya/Documents/L00205444-Sentinal Assignment/sentinel/common-functions/tfconfig-functions.sentinel"
+		},
+		{
+			"key": "test/allowed_providers/pass/tfconfig-functions",
+			"source": "../../common-functions/tfconfig-functions.sentinel",
+			"sourceSum": "",
+			"dest": "/Users/taniya/Documents/L00205444-Sentinal Assignment/sentinel/common-functions/tfconfig-functions.sentinel"
+		}
+	]
+}
