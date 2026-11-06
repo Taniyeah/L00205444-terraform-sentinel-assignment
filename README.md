@@ -1,102 +1,53 @@
 # L00205444 Terraform Sentinel Assignment
 
-**Taniya Offergeld, L00205444** 
+## What this does
+Terraform makes a plan. Sentinel checks the plan before anything is built, and passes or fails it. I only plan and never apply, so nothing is created in AWS.
 
-## What this repo does
-Terraform makes a plan. Sentinel checks the plan and passes or fails it. In HCP Terraform a failed hard-mandatory policy stops the run before anything is built. I do plan (only) and never apply.
+## Digital sovereignty
+The brief quotes: "Digital Security & Resilience will be a key priority for Ireland during the upcoming presidency of the EU council". The Dáil answer (Question 74, 13 May 2026) describes digital sovereignty as the ability of Ireland and the European Union to act autonomously. My policies follow that idea: 
 
-## Structure
-- `sentinel/`: policies, `sentinel.hcl` and test cases
-- `terraform/`: code, `.terraform.lock.hcl` and saved plans (`tfplan`)
-- `tests/`: mock data per policy
-- `documentation/`: evidence 
+## Policies and why
+- sovereignty (hard-mandatory): only Ireland (eu-west-1) and Germany (Frankfurt, eu-central-1). Both are in the EU. I chose two regions mainly for resilience, backup and redundancy: if one region or country is disrupted, a second EU region can take over or hold backups, and data still stays under EU law. London and Zurich are excluded because they are not in the EU. The policy only restricts where resources may be created.
+- instance_type (advisory): only t2.micro, t2.small and t2.medium. A cost control, not a sovereignty measure. 
+- allowed_providers (advisory): only the aws provider (supply chain) due to plaform familiarty.
 
-| Policy | File | What it checks | Enforcement |
-|---|---|---|---|
-| Sovereignty (approved regions) | `sentinel/sovereignty.sentinel` | The `region` variable in the plan is `eu-west-1` or `eu-central-1` | hard-mandatory (blocks the run) |
-| Instance type | `sentinel/instance_type.sentinel` | Instance type is t2.micro, t2.small or t2.medium, and a `Name` tag exists | advisory |
-| Allowed providers (supply chain) | `sentinel/allowed_providers.sentinel` (needs `sentinel/common-functions/tfconfig-functions.sentinel`) | Every provider in the configuration is `aws` | advisory |
+## Why AWS only
+- We used AWS the most in the course, so it is the platform I know best. I also have my own AWS account. One provider kept the project small enough to test properly.
+- AWS has regions in the EU (Ireland and Frankfurt), so a region list can express "EU only". The Dáil answer supports access to trusted non-EU providers, so an AWS setup inside EU regions is consistent with it.
+- For compliance and regulation, I used the region as the control: it decides which country's infrastructure is used. I did not assess AWS's compliance certifications or its legal position, so I make no claim about them.
+- Limit: AWS is a US company, so one provider also means dependence on it. A region policy does not remove that, which is why digital sovereignty needs more than this framework.
 
+## Why I decided this way
+- Only the sovereignty policy blocks a run. The HCP Free form let me save one mandatory policy (observed, not documented).
+- Two EU regions, Ireland and Germany: resilience, backup and redundancy inside the EU. The trade-off is that data may leave Ireland, but it stays under EU law.
+- I used HashiCorp's own code for the other two policies, because it is trusted and tested, and fits supply chain security.
+- The provider is pinned (~> 6.0) and the lock file is committed, so the same provider is installed every run.
+- I did not write IMDSv2, EBS encryption or SSH policies: I found no official HashiCorp Sentinel policy for them, and wanted to use only official code.
 
-Run the tests from `sentinel/` with `sentinel test -verbose`. Evidence is in `documentation/evidence/`.
+## How it was tested (pass and fail)
+Run from the sentinel folder: `sentinel test -verbose`
 
-The brief quotes: "Digital Security & Resilience will be a key priority for
-Ireland during the upcoming presidency of the EU council". The Dáil answer
-(Question 74, 13 May 2026) describes digital sovereignty as the ability of
-Ireland and the European Union to act autonomously. My policies follow
-that idea.
+| Policy | CLI | HCP Terraform |
+|---|---|---|
+| sovereignty | evidence-sovereignty-pass.png, evidence-sovereignty-fail.png, evidence-sovereignty-sentinel-test.png | hcp-sovereignty-pass.png, hcp-sovereignty-fail.png (US region blocked) |
+| instance_type | evidence-instance-pass.png, evidence-instance-fail.png | hcp-instance-type-pass.png, hcp-instance-type-fail.png (t2.large warned) |
+| allowed_providers | evidence-allowed-providers-pass.png, evidence-allowed-providers-fail.png | hcp-allowed-providers-error.png (HCP Free cannot load the helper file) |
 
+Also: hcp-lockfile-mismatch.png (the lock file stopped a provider change). All files are in documentation/evidence/. Saved plans: terraform/tfplan (compliant) and terraform/tfplan-noncompliant. Mocks are real downloads from HCP runs.
 
-## Design Choices and Limitations
+## Limits
+- A region check shows where data sits, not who runs the platform. A region hard-coded in the provider block would be missed.
+- Sentinel only sees the plan, not changes made in AWS afterwards.
+- Advisory policies warn but do not block. More in the technical report.
 
-**Region policy (`sovereignty`, hard-mandatory)**
-- Only Ireland (`eu-west-1`) and Frankfurt (`eu-central-1`) are allowed.
-  Both are inside the EU, so deployments stay in EU jurisdiction.
-- Two regions also help resilience: if one is unavailable, the other is
-  still inside the EU.
-- London (`eu-west-2`) and Zurich (`eu-central-2`) are excluded. Both are
-  in Europe but not in the EU.
+## AI use
+Tool: Claude (Anthropic), Claude Sonnet 5.5 (claude-sonnet-5-5)
+Prompts and reviews focused around the two links about Irish policymaking and code reviews
+- I am an Irish policymaker deciding how the State should approach digital sovereignty when choosing a cloud provider and a backup strategy. Ireland is a trusted EU partner and supports access to trusted non-EU providers. My main priorities are protecting Irish data and resilience. The data includes <personal / sensitive / critical-service data: specify>. My current setup, if any, is <e.g. AWS Ireland region>.
+Please act as an independent adviser on cloud policy, writing for a senior decision-maker who is not a technical specialist, and tell me what I should consider when choosing (1) a cloud provider and (2) a backup and resilience design, so that Irish data is protected and services can keep running if one provider, region or country is disrupted.
+- Give me realistic  scenario in which Europe is cut off from non-EU countries and say what would still need to work in Ireland. What would it mean for Irish infrastructure from big to small scale.
+- What pros and cons do my own decisions have done in my assigments
+- Where do sovereignty and reslience contradict each other in the current Eurpean political climate and what are trends observed across Europe in the last 3 years? To avoid single point of failure but still remain data sovereignty as a core policy? What impact would that have on classifying data and who can do that?
+- I am using https://github.com/hashicorp-education/learn-terraform-sentinel and https://github.com/hashicorp-education/learn-sentinel-write-policy as my main code, explain the code to my step by step and it has been written in that way, show strenghts and weaknesses of the code and wether it is solid for my assigment. If needed adjust it to my requirements and explain why. Do not change, propose only.
 
-
-**Instance type policy (`instance_type`, advisory)**
-- Allowed types are t2.micro, t2.small and t2.medium.
-- Main focus is on cost control
-  It shows that policy as code can enforce a different kind of rule next to
-  the region rule
-- It is advisory only. The Free plan of HCP Terraform let me save one
-  mandatory policy, so I used it for the region policy. On a paid plan I
-  would make this one soft mandatory.
-- The policy is HashiCorp's `restrict-aws-instances-type-and-tag` example
-  (MPL-2.0), copied with a credit header.
-
-  **Allowed providers policy (supply chain)**
-
-HashiCorp's `allowed-providers` policy, with the allowed list reduced to
-`["aws"]` because my code only uses AWS. It checks the configuration, not
-the plan.
-
-- **CLI:** pass and fail both work. The pass mock is from an HCP run.
-  The fail mock is HashiCorp's own, with `google`, `random` and others.
-- **HCP Free:** the policy errors with
-  `Import "tfconfig-functions" is not available`. It needs a helper file,
-  and the HCP form takes only one file. Evidence:
-  `documentation/evidence/hcp-allowed-providers-error.png`.
-- **Limit:** it checks the provider name (`aws`), not the full address
-  (`hashicorp/aws`). I did not test what happens with another publisher's
-  provider of the same name.
-- **Warning:** Sentinel shows a deprecation warning for the `module` block.
-  HashiCorp's own tests use it too.
-
-
-## Decision justification
-
-- **Policy as code works for sovereignty:** the region rule is written once, checked on every plan and kept in Git. It blocked a US region before anything was built. It enforces my region list, not sovereignty itself.
-- **Region limits:** a region shows where data sits, not who runs the platform. My policy also reads the `region` variable, so a region hard-coded in provider block would be missed.
-- **Supply chain:** the provider runs with my AWS credentials, so a changed provider could bypass every policy. The pinned version and lock file make Terraform install the same provider each run. When I changed the version in HCP, the old lock file stopped the run (`documentation/evidence/hcp-lockfile-mismatch.png`). The `allowed_providers` policy rejects any provider except `aws`, but it only worked on the CLI, not in HCP Free. Sentinel cannot see inside a provider.
-- **Sentinel limits:** Sentinel only checks the plan that Terraform produces. It has no way of seeing what happens in AWS outside Terraform. Advisory failures do not block a run.
-- **Maintenance:** regions and policies in HCP can drift from GitHub. On the Free plan HCP can’t read GitHub by itself, so it doesn’t update automatically.
-
-## AI use declaration
-
-**My work:**
-- Worked through HashiCorp's beginner Terraform tutorial (the HashiCups coffee example) and set up the HCP Terraform Free account and organization
-- Built and ran everything myself: every command, and every step in HCP Terraform, AWS and GitHub
-- Chose the policies, the regions and the enforcement levels, and decided what to leave out
-- Took and checked all the evidence, found and fixed the problems that came up (paths, expired credentials, the lock file mismatch, the fork configuration)
-- Wrote the README in my own words and managed the Git branches, pull requests and merges
-
-**AI assistance:** Claude (Anthropic), Claude Sonnet 5.5 (`claude-sonnet-5-5`) for feedback on design choices and README. Additionally, Claude helped me to understand the assigment step by step 
-
-## Credits and sources
-
-**Code**
-- Terraform code is based on HashiCorp's `learn-terraform-sentinel`
-  (MPL-2.0, Copyright (c) 2020 HashiCorp, Inc.). Licence copy:
-  `terraform/LICENSE-HashiCorp-learn-terraform-sentinel`.
-- `sentinel/instance_type.sentinel` is HashiCorp's
-  `restrict-aws-instances-type-and-tag.sentinel` from
-  `learn-sentinel-write-policy` (MPL-2.0, Copyright (c) 2021 HashiCorp,
-  Inc.), copied unmodified apart from a credit header. Licence copy:
-  `sentinel/LICENSE-HashiCorp-learn-sentinel-write-policy`.
-- `sentinel/sovereignty.sentinel` and the test cases are my own work with AI assisted feedback
 
